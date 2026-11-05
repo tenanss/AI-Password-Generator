@@ -79,3 +79,26 @@ def test_static_assets_and_health():
     assert client.get("/static/js/app.js").status_code == 200
     assert client.get("/favicon.ico").status_code == 200
     assert client.get("/healthz").json() == {"status": "ok"}
+
+
+FONT_FILES = [
+    "/static/fonts/fraunces-latin.woff2",
+    "/static/fonts/fraunces-italic-latin.woff2",
+    "/static/fonts/inter-latin.woff2",
+    "/static/fonts/jetbrains-mono-latin.woff2",
+]
+
+
+@pytest.mark.parametrize("path", FONT_FILES)
+def test_font_served(path):
+    res = client.get(path)
+    assert res.status_code == 200
+    assert res.content[:4] == b"wOF2"
+
+
+def test_fonts_css_declares_local_faces():
+    css = client.get("/static/css/fonts.css").text
+    for family in ("Fraunces", "Inter", "JetBrains Mono"):
+        assert f'font-family: "{family}"' in css
+    assert "font-style: italic" in css
+    assert "http" not in css
