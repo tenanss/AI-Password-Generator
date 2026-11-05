@@ -227,8 +227,65 @@ function registerServiceWorker() {
   });
 }
 
+/** Comparsa delle sezioni, impulso del diagramma, bordo della barra allo scroll. */
+function setupMotion() {
+  const topbar = document.querySelector(".topbar");
+  if (topbar) {
+    const onScroll = () => topbar.classList.toggle("is-scrolled", window.scrollY > 10);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!("IntersectionObserver" in window)) return;
+
+  // Si nascondono solo gli elementi che al caricamento sono sotto lo schermo:
+  // quello che si vede subito resta visibile da subito.
+  const revealer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      entry.target.classList.remove("is-pending");
+      revealer.unobserve(entry.target);
+    }
+  }, { threshold: 0.15 });
+  document.querySelectorAll(".reveal").forEach((node, i) => {
+    if (node.getBoundingClientRect().top < window.innerHeight) return;
+    node.style.transitionDelay = `${(i % 3) * 80}ms`;
+    node.classList.add("is-pending");
+    revealer.observe(node);
+  });
+  // Riserva: se l'osservatore perde un elemento (scroll molto veloce), lo scroll lo rivela
+  // comunque appena e' nello schermo. Nessuna sezione deve restare nascosta.
+  let checkQueued = false;
+  window.addEventListener("scroll", () => {
+    if (checkQueued) return;
+    checkQueued = true;
+    requestAnimationFrame(() => {
+      checkQueued = false;
+      for (const node of document.querySelectorAll(".reveal.is-pending")) {
+        if (node.getBoundingClientRect().top < window.innerHeight) {
+          node.classList.remove("is-pending");
+          revealer.unobserve(node);
+        }
+      }
+    });
+  }, { passive: true });
+
+  const flow = document.getElementById("flow");
+  if (!flow) return;
+  const pulse = () => {
+    flow.classList.remove("pulse");
+    void flow.offsetWidth; // riavvia l'animazione
+    flow.classList.add("pulse");
+  };
+  new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) pulse();
+  }, { threshold: 0.5 }).observe(flow);
+  document.addEventListener("vaultforge:generate", pulse);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
+  setupMotion();
   const generate = document.getElementById("generate");
   if (!generate) return; // pagine senza generatore, come /api
 
