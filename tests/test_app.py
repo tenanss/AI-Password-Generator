@@ -1,6 +1,8 @@
+import io
 import json
 
 import pytest
+from PIL import Image
 from fastapi.testclient import TestClient
 
 import generator
@@ -79,3 +81,112 @@ def test_static_assets_and_health():
     assert client.get("/static/js/app.js").status_code == 200
     assert client.get("/favicon.ico").status_code == 200
     assert client.get("/healthz").json() == {"status": "ok"}
+
+
+FONT_FILES = [
+    "/static/fonts/fraunces-latin.woff2",
+    "/static/fonts/fraunces-italic-latin.woff2",
+    "/static/fonts/inter-latin.woff2",
+    "/static/fonts/jetbrains-mono-latin.woff2",
+]
+
+
+@pytest.mark.parametrize("path", FONT_FILES)
+def test_font_served(path):
+    res = client.get(path)
+    assert res.status_code == 200
+    assert res.content[:4] == b"wOF2"
+
+
+def test_fonts_css_declares_local_faces():
+    css = client.get("/static/css/fonts.css").text
+    for family in ("Fraunces", "Inter", "JetBrains Mono"):
+        assert f'font-family: "{family}"' in css
+    assert "font-style: italic" in css
+    assert "http" not in css
+
+
+@pytest.mark.parametrize("path,size", [
+    ("/static/icons/favicon-32.png", 32),
+    ("/static/icons/apple-touch-icon.png", 180),
+    ("/static/icons/icon-192.png", 192),
+    ("/static/icons/icon-512.png", 512),
+    ("/static/icons/icon-maskable-512.png", 512),
+])
+def test_icon_sizes_and_palette(path, size):
+    img = Image.open(io.BytesIO(client.get(path).content)).convert("RGB")
+    assert img.size == (size, size)
+    assert img.getpixel((size // 2, size // 2)) == (13, 14, 17)  # centro grafite
+
+
+def test_manifest_uses_caveau_colors():
+    data = json.loads(client.get("/manifest.webmanifest").content)
+    assert data["theme_color"] == "#0d0e11"
+    assert data["background_color"] == "#0d0e11"
+
+
+def test_svg_icon_is_brass_dial():
+    svg = client.get("/static/icons/icon.svg").text
+    assert "#c9a35b" in svg and "<circle" in svg
+
+
+def test_index_structure():
+    html = client.get("/").text
+    for needle in ('id="come-funziona"', 'id="sicurezza"', 'href="#come-funziona"',
+                   'href="#sicurezza"', 'href="/api"', 'id="dial"', 'id="generate"',
+                   "Genera e sigilla", "sigillata", "Quattro passaggi", "Verificalo",
+                   "https://github.com/tenanss/VaultForge", "fonts.css?v="):
+        assert needle in html
+    assert 'data-option="excludeAmbiguous"' in html
+    assert 'name="theme-color" content="#0d0e11"' in html
+    assert "Aziende" not in html
+    assert "fonts.googleapis" not in html
+
+
+def test_index_chips_are_accessible_buttons():
+    html = client.get("/").text
+    assert html.count('class="chip"') == 5
+    assert html.count("aria-pressed=") == 5
+
+
+def test_api_docs_page():
+    res = client.get("/api")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/html")
+    assert "script-src 'self'" in res.headers["content-security-policy"]
+    html = res.text
+    for needle in ("/api/v1/generate", "length", "exclude_ambiguous", "very_strong",
+                   "422", "no-store", "curl", 'href="/#sicurezza"'):
+        assert needle in html
+    assert "<script>" not in html and "style=" not in html
+
+
+def test_api_docs_examples_match_api():
+    # i nomi dei parametri documentati sono quelli che l'API accetta davvero
+    html = client.get("/api").text
+    for param in ("lower", "upper", "digits", "symbols"):
+        assert f"<code>{param}</code>" in html
+
+
+def test_service_worker_caches_new_assets():
+    sw = client.get("/sw.js").text
+    assert "vaultforge-1.1.0" in sw
+    for path in FONT_FILES + ["/api", f"/static/css/fonts.css?v={APP_VERSION}"]:
+        assert f'"{path}"' in sw
+
+
+def test_index_chips_have_spoken_labels():
+    # "A–Z" e "a–z" suonano uguali a uno screen reader: servono nomi espliciti
+    html = client.get("/").text
+    for label in ("Maiuscole A–Z", "Minuscole a–z", "Numeri 0–9", "Simboli",
+                  "Escludi caratteri ambigui"):
+        assert f'aria-label="{label}' in html
+
+
+@pytest.mark.parametrize("path", ["/", "/api"])
+def test_head_request_shows_security_headers(path):
+    # Il comando "curl -sI" della sezione Sicurezza usa HEAD: deve rispondere 200
+    res = client.head(path)
+    assert res.status_code == 200
+    assert "default-src 'self'" in res.headers["content-security-policy"]
+    assert "max-age=31536000" in res.headers["strict-transport-security"]

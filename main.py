@@ -12,7 +12,7 @@ import generator
 
 APP_NAME = "VaultForge"
 # Incrementala a ogni rilascio: invalida la cache del service worker.
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -48,10 +48,21 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+# Anche HEAD: e' quello che usa "curl -I", il comando suggerito nella sezione Sicurezza.
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
     return templates.TemplateResponse(
         request, "index.html", {"app_name": APP_NAME, "version": APP_VERSION}
+    )
+
+
+@app.api_route("/api", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
+async def api_docs(request: Request):
+    # Documentazione scritta a mano: quella automatica di FastAPI resta disattivata.
+    return templates.TemplateResponse(
+        request,
+        "api.html",
+        {"app_name": APP_NAME, "version": APP_VERSION, "home": "/"},
     )
 
 

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <meta name="description" content="{% block description %}Genera password robuste direttamente sul tuo dispositivo. Nessuna password viene inviata a un server.{% endblock %}">
+    <meta name="theme-color" content="#0d0e11">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="/static/css/fonts.css?v={{ version }}">
+    <link rel="stylesheet" href="/static/css/app.css?v={{ version }}">
+    <script src="/static/js/app.js?v={{ version }}" defer></script>
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    {%- set home = home | default("") %}
+    <nav class="topbar" aria-label="Navigazione principale">
+        <a class="logo" href="/" aria-label="{{ app_name }}, pagina principale">
+            <svg width="26" height="26" viewBox="0 0 26 26" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true">
+                <circle cx="13" cy="13" r="11"></circle>
+                <circle cx="13" cy="13" r="5.5"></circle>
+                <path d="M13 2v4M13 20v4M2 13h4M20 13h4"></path>
+            </svg>
+            <span>VAULTFORGE</span>
+        </a>
+        <div class="links">
+            <a href="{{ home }}#come-funziona">Come funziona</a>
+            <a href="{{ home }}#sicurezza">Sicurezza</a>
+        </div>
+        <a class="ghost" href="/api">Documentazione API</a>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <footer class="foot">
+        <span class="logo logo-small">VAULTFORGE</span>
+        <span>Password generate sul tuo dispositivo. Mai inviate, mai salvate.</span>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -143,23 +143,177 @@ function fallbackCopy(text) {
   return ok;
 }
 
+
+// ---------------------------------------------------------------------------
+// Interfaccia "Caveau": ruota della cassaforte, sigillo e anteprima delle opzioni.
+// ---------------------------------------------------------------------------
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const DIAL_CENTER = 200;
+const BOLT_COUNT = 24;
+const BOLT_STEP_MS = 22;
+const STAMPS = {
+  weak: "● DEBOLE",
+  fair: "● FRAGILE",
+  strong: "● SIGILLATA",
+  "very-strong": "● SIGILLATA",
+};
+const bitsFormat = new Intl.NumberFormat("it-IT", {
+  minimumFractionDigits: 1,
+  maximumFractionDigits: 1,
+});
+
+function polar(radius, degrees) {
+  const angle = ((degrees - 90) * Math.PI) / 180;
+  return [DIAL_CENTER + radius * Math.cos(angle), DIAL_CENTER + radius * Math.sin(angle)];
+}
+
+function svgElement(tag, attributes) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, value);
+  return node;
+}
+
+/** Disegna tacche, numeri e perni della ruota; restituisce i perni. */
+function buildDial(ticks, boltsGroup) {
+  for (let i = 0; i < 100; i++) {
+    const deg = i * 3.6;
+    const major = i % 10 === 0;
+    const inner = major ? 146 : i % 5 === 0 ? 151 : 155;
+    const [x1, y1] = polar(162, deg);
+    const [x2, y2] = polar(inner, deg);
+    ticks.appendChild(svgElement("line", { x1, y1, x2, y2, class: major ? "dial-tick major" : "dial-tick" }));
+    if (major) {
+      const [tx, ty] = polar(134, deg);
+      const label = svgElement("text", { x: tx, y: ty + 4, "text-anchor": "middle", class: "dial-num" });
+      label.textContent = String(i);
+      ticks.appendChild(label);
+    }
+  }
+  const bolts = [];
+  for (let i = 0; i < BOLT_COUNT; i++) {
+    const [cx, cy] = polar(176, i * (360 / BOLT_COUNT));
+    const bolt = svgElement("circle", { cx, cy, r: i % 2 ? 2.4 : 4, class: "bolt" });
+    boltsGroup.appendChild(bolt);
+    bolts.push(bolt);
+  }
+  return bolts;
+}
+
+/** Righe e dimensione del carattere perche' la password stia nel quadrante. */
+function fitPassword(output, length) {
+  const lines = length <= 16 ? 1 : length <= 32 ? 2 : length <= 48 ? 3 : 4;
+  const perLine = Math.ceil(length / lines);
+  // Raggio utile del quadrante (cerchio r=118 su 400) con un piccolo margine.
+  const radius = (118 / 400) * output.parentElement.clientWidth * 0.94;
+  const stampHeight = 54; // timbro (circa 39 px ruotato) e il suo margine, sotto la password
+  // Il blocco (password + timbro) e' centrato: si riduce il carattere finche'
+  // gli angoli in alto della password restano dentro il cerchio.
+  let size = 19;
+  while (size > 9) {
+    const halfWidth = (perLine * 0.62 * size) / 2;
+    const top = (lines * 1.5 * size + stampHeight) / 2;
+    if (Math.hypot(halfWidth, top) <= radius) break;
+    size -= 0.25;
+  }
+  output.style.fontSize = `${size}px`;
+  output.style.maxWidth = `${perLine * 0.62 + 0.1}em`;
+}
+
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}
+
+/** Comparsa delle sezioni, impulso del diagramma, bordo della barra allo scroll. */
+function setupMotion() {
+  const topbar = document.querySelector(".topbar");
+  if (topbar) {
+    const onScroll = () => topbar.classList.toggle("is-scrolled", window.scrollY > 10);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  if (!("IntersectionObserver" in window)) return;
+
+  // Si nascondono solo gli elementi che al caricamento sono sotto lo schermo:
+  // quello che si vede subito resta visibile da subito.
+  const revealer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      entry.target.classList.remove("is-pending");
+      revealer.unobserve(entry.target);
+    }
+  }, { threshold: 0.15 });
+  document.querySelectorAll(".reveal").forEach((node, i) => {
+    if (node.getBoundingClientRect().top < window.innerHeight) return;
+    node.style.transitionDelay = `${(i % 3) * 80}ms`;
+    node.classList.add("is-pending");
+    revealer.observe(node);
+  });
+  // Riserva: se l'osservatore perde un elemento (scroll molto veloce), lo scroll lo rivela
+  // comunque appena e' nello schermo. Nessuna sezione deve restare nascosta.
+  let checkQueued = false;
+  window.addEventListener("scroll", () => {
+    if (checkQueued) return;
+    checkQueued = true;
+    requestAnimationFrame(() => {
+      checkQueued = false;
+      for (const node of document.querySelectorAll(".reveal.is-pending")) {
+        if (node.getBoundingClientRect().top < window.innerHeight) {
+          node.classList.remove("is-pending");
+          revealer.unobserve(node);
+        }
+      }
+    });
+  }, { passive: true });
+
+  const flow = document.getElementById("flow");
+  if (!flow) return;
+  const pulse = () => {
+    flow.classList.remove("pulse");
+    void flow.offsetWidth; // riavvia l'animazione
+    flow.classList.add("pulse");
+  };
+  new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) pulse();
+  }, { threshold: 0.5 }).observe(flow);
+  document.addEventListener("vaultforge:generate", pulse);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  registerServiceWorker();
+  setupMotion();
+  const generate = document.getElementById("generate");
+  if (!generate) return; // pagine senza generatore, come /api
+
+  const body = document.body;
   const el = {
     form: document.getElementById("options"),
     password: document.getElementById("password"),
-    copy: document.getElementById("copy"),
-    generate: document.getElementById("generate"),
-    range: document.getElementById("length"),
-    number: document.getElementById("length-number"),
-    meter: document.querySelector(".meter"),
+    stamp: document.getElementById("stamp"),
+    srStatus: document.getElementById("sr-status"),
     meterFill: document.getElementById("meter-fill"),
     strengthLabel: document.getElementById("strength-label"),
-    entropy: document.getElementById("entropy"),
+    entropyBits: document.getElementById("entropy-bits"),
     crackTime: document.getElementById("crack-time"),
+    range: document.getElementById("length"),
+    number: document.getElementById("length-number"),
+    chips: [...document.querySelectorAll(".chip[data-option]")],
+    copy: document.getElementById("copy"),
     toast: document.getElementById("toast"),
+    ring: document.getElementById("dial-ring"),
   };
-  const checkboxes = [...el.form.querySelectorAll('input[type="checkbox"]')];
+  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const bolts = buildDial(document.getElementById("dial-ticks"), document.getElementById("dial-bolts"));
+
   let opts = loadOptions();
+  let current = "";
+  let sealing = false;
+  let staleWhileSealing = false;
+  let ringAngle = 0;
   let toastTimer;
 
   function showToast(message) {
@@ -172,64 +326,199 @@ document.addEventListener("DOMContentLoaded", () => {
   function syncForm() {
     el.range.value = opts.length;
     el.number.value = opts.length;
-    for (const box of checkboxes) box.checked = opts[box.name];
+    for (const chip of el.chips) chip.setAttribute("aria-pressed", String(opts[chip.dataset.option]));
   }
 
-  function render() {
-    el.password.textContent = generatePassword(opts);
-    const bits = entropyBits(opts);
+  function showStrength(bits, preview) {
     const level = strengthOf(bits);
-    el.meter.dataset.level = level.key;
+    body.dataset.level = level.key;
     el.meterFill.style.width = `${Math.min(100, (bits / METER_FULL_BITS) * 100)}%`;
-    el.strengthLabel.textContent = level.label;
-    el.entropy.textContent = `${numberFormat.format(bits)} bit di entropia`;
-    el.crackTime.textContent =
-      `Tempo stimato per indovinarla con un attacco offline: ${crackTimeText(bits)}.`;
+    el.strengthLabel.textContent = preview ? `Anteprima: ${level.label.toLowerCase()}` : level.label;
+    return level;
+  }
+
+  function setBusy(busy) {
+    generate.setAttribute("aria-disabled", String(busy));
+    el.copy.setAttribute("aria-disabled", String(busy));
+  }
+
+  function sealOff() {
+    el.stamp.classList.remove("show");
+    for (const bolt of bolts) bolt.classList.remove("on");
+  }
+
+  function spinRing() {
+    const a1 = ringAngle + 360 + randomInt(180);
+    const a2 = a1 - 270 - randomInt(120);
+    const a3 = a2 + 90 + randomInt(90);
+    el.ring.animate(
+      [
+        { transform: `rotate(${ringAngle}deg)` },
+        { transform: `rotate(${a1}deg)`, offset: 0.45 },
+        { transform: `rotate(${a2}deg)`, offset: 0.8 },
+        { transform: `rotate(${a3}deg)` },
+      ],
+      { duration: 1500, easing: "cubic-bezier(.45,.05,.25,1)", fill: "forwards" }
+    );
+    ringAngle = a3;
+  }
+
+  /** I caratteri scorrono a caso e si fissano da sinistra a destra. */
+  function scramble(password, done) {
+    const alphabet = characterPools(opts).join("");
+    const spans = [...password].map(() => {
+      const span = document.createElement("span");
+      span.className = "ch";
+      return span;
+    });
+    el.password.replaceChildren(...spans);
+    const start = performance.now();
+    const lockStart = 500;
+    const lockSpan = 900;
+    const locked = new Array(password.length).fill(false);
+    (function frame(now) {
+      const t = now - start;
+      spans.forEach((span, i) => {
+        if (locked[i]) return;
+        if (t > lockStart + i * (lockSpan / password.length)) {
+          span.textContent = password[i];
+          span.classList.add("lock");
+          locked[i] = true;
+        } else {
+          span.textContent = alphabet[randomInt(alphabet.length)];
+        }
+      });
+      if (locked.every(Boolean)) done();
+      else requestAnimationFrame(frame);
+    })(start);
+  }
+
+  function lightBolts(done) {
+    bolts.forEach((bolt, i) => setTimeout(() => bolt.classList.add("on"), i * BOLT_STEP_MS));
+    setTimeout(done, BOLT_COUNT * BOLT_STEP_MS + 60);
+  }
+
+  function countBits(target) {
+    if (reducedMotion.matches) {
+      el.entropyBits.textContent = bitsFormat.format(target);
+      return;
+    }
+    const start = performance.now();
+    (function tick(now) {
+      const p = Math.min(1, (now - start) / 700);
+      el.entropyBits.textContent = bitsFormat.format(target * (1 - (1 - p) ** 3));
+      if (p < 1) requestAnimationFrame(tick);
+    })(start);
+  }
+
+  function seal() {
+    if (sealing) return;
+    sealing = true;
+    staleWhileSealing = false;
+    body.classList.remove("is-stale");
+    body.classList.add("is-sealing");
+    // aria-disabled invece di disabled: disattivare il pulsante col focus farebbe
+    // perdere la posizione a chi usa la tastiera. Il blocco vero e' `sealing`.
+    setBusy(true);
+    document.dispatchEvent(new CustomEvent("vaultforge:generate"));
+
+    const password = generatePassword(opts);
+    const bits = entropyBits(opts);
+    current = password;
+    sealOff();
+    el.meterFill.style.width = "0";
+    el.entropyBits.textContent = bitsFormat.format(0);
+    el.strengthLabel.textContent = "Sigillo in corso…";
+    el.crackTime.textContent = " ";
+    fitPassword(el.password, password.length);
+
+    const finish = () => {
+      const level = showStrength(bits, false);
+      el.stamp.textContent = STAMPS[level.key];
+      el.stamp.classList.add("show");
+      countBits(bits);
+      el.crackTime.textContent =
+        `Tempo stimato per indovinarla con un attacco offline: ${crackTimeText(bits)}.`;
+      el.srStatus.textContent = `Nuova password generata: ${level.label.toLowerCase()}.`;
+      sealing = false;
+      body.classList.remove("is-sealing");
+      setBusy(false);
+      if (staleWhileSealing) markStale();
+    };
+
+    if (reducedMotion.matches) {
+      el.password.textContent = password;
+      for (const bolt of bolts) bolt.classList.add("on");
+      finish();
+      return;
+    }
+    spinRing();
+    scramble(password, () => lightBolts(finish));
+  }
+
+  /** Le opzioni sono cambiate: niente nuova password, solo l'anteprima della robustezza. */
+  function markStale() {
+    if (sealing) {
+      staleWhileSealing = true;
+      return;
+    }
+    body.classList.add("is-stale");
+    sealOff();
+    const bits = entropyBits(opts);
+    showStrength(bits, true);
+    el.entropyBits.textContent = bitsFormat.format(bits);
+    el.crackTime.textContent = "Opzioni cambiate. Premi «Genera e sigilla» per una nuova password.";
   }
 
   function update(changes) {
     opts = { ...opts, ...changes };
     saveOptions(opts);
     syncForm();
-    render();
+    markStale();
   }
 
   el.range.addEventListener("input", () => update({ length: clampLength(el.range.value) }));
   el.number.addEventListener("change", () => update({ length: clampLength(el.number.value) }));
 
-  for (const box of checkboxes) {
-    box.addEventListener("change", () => {
-      const next = { ...opts, [box.name]: box.checked };
+  for (const chip of el.chips) {
+    chip.addEventListener("click", () => {
+      const key = chip.dataset.option;
+      const next = { ...opts, [key]: !opts[key] };
       if (characterPools(next).length === 0) {
-        box.checked = true;
         showToast("Serve almeno un tipo di carattere");
         return;
       }
-      update({ [box.name]: box.checked });
+      update({ [key]: next[key] });
     });
   }
 
   el.form.addEventListener("submit", (event) => event.preventDefault());
-  el.generate.addEventListener("click", render);
+  generate.addEventListener("click", seal);
 
   el.copy.addEventListener("click", async () => {
-    const text = el.password.textContent;
+    if (sealing) return; // mai copiare una password non ancora sigillata
     let ok = false;
     try {
-      await navigator.clipboard.writeText(text);
+      await navigator.clipboard.writeText(current);
       ok = true;
     } catch {
-      ok = fallbackCopy(text);
+      ok = fallbackCopy(current);
     }
-    showToast(ok ? "Password copiata negli appunti" : "Copia non riuscita: selezionala a mano");
+    if (!ok) showToast("Copia non riuscita: selezionala a mano");
+    else if (body.classList.contains("is-stale")) {
+      // Le opzioni sono cambiate: si e' copiata la password mostrata (sfocata), non una nuova.
+      showToast("Password precedente copiata: premi «Genera e sigilla» per una nuova");
+    } else showToast("Password copiata negli appunti");
   });
 
-  syncForm();
-  render();
-
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
-    });
+  // Se la ruota cambia dimensione (rotazione del telefono, finestra ridimensionata)
+  // la password va riadattata al nuovo quadrante.
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(() => {
+      if (current) fitPassword(el.password, current.length);
+    }).observe(el.password.parentElement);
   }
+
+  syncForm();
+  seal();
 });
