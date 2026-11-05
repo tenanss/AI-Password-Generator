@@ -60,6 +60,8 @@ ruota attorno alla parola **vault**: cassaforte, sigillo, qualcosa di chiuso e s
   Il service worker deve mettere in cache anche i font e la pagina della documentazione API.
 - Il manifest (`theme_color`, `background_color`) e il `<meta name="theme-color">` passano al nuovo sfondo grafite.
 - Deve funzionare bene da telefono (larghezza 360 px): la ruota si ridimensiona, le sezioni vanno in colonna.
+  Su telefono il generatore resta in primo piano: l'ordine è sopratitolo, titolo, ruota con i controlli,
+  poi sottotitolo e prove brevi.
 
 ## Cosa è stato deciso
 

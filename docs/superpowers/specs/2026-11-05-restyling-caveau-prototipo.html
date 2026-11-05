@@ -173,7 +173,7 @@
   }
   .toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;background:#1f2025;border:1px solid var(--brass-dim);color:var(--brass-hi);padding:10px 16px;border-radius:8px;font-size:13px;transition:.25s}
   .toast.show{opacity:1;transform:translate(-50%,0)}
-  @media (max-width:900px){.hero{grid-template-columns:1fr}.links{display:none}.steps{grid-template-columns:1fr}.proofs{grid-template-columns:1fr}}
+  @media (max-width:900px){.hero{grid-template-columns:1fr;gap:18px;padding-top:20px}.hero-text{display:contents}.hero .eyebrow{order:1;margin-bottom:0}.hero h1{order:2;font-size:clamp(34px,9vw,44px)}.vault{order:3;margin:8px 0 12px}.hero .lead{order:4;margin-top:6px}.hero .proofs{order:5;margin-top:0}.links{display:none}.steps{grid-template-columns:1fr}.proofs{grid-template-columns:1fr}}
   @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 </style>
 </head>
@@ -189,7 +189,7 @@
 </nav>
 
 <section class="hero">
-  <div>
+  <div class="hero-text">
     <div class="eyebrow">GENERATORE DI PASSWORD PER AZIENDE</div>
     <h1>Ogni password,<br><em>sigillata</em> prima<br>ancora di nascere.</h1>
     <p class="lead">VaultForge genera le password <b>direttamente nel tuo browser</b>, con la crittografia del dispositivo. Nessun server le vede, nessun database le conserva.</p>
@@ -418,7 +418,7 @@ function run() {
   const len = +$("#len").value, { pw, bits } = makePw(len);
   current = pw;
   const el = $("#pw"); el.innerHTML = "";
-  el.style.fontSize = len > 22 ? "14px" : len > 16 ? "16px" : "19px";
+  const lines = len <= 16 ? 1 : len <= 32 ? 2 : 3, perLine = Math.ceil(len / lines); el.style.fontSize = Math.min(19, el.parentElement.clientWidth * 0.5 / (perLine * 0.62)) + "px";
   const chars = [...pw].map(() => { const s = document.createElement("span"); s.className = "ch"; el.appendChild(s); return s; });
   const all = pools().join("");
   $("#stamp").classList.remove("show"); bolts.forEach(b => b.classList.remove("on"));
