@@ -173,3 +173,11 @@ def test_service_worker_caches_new_assets():
     assert "vaultforge-1.1.0" in sw
     for path in FONT_FILES + ["/api", f"/static/css/fonts.css?v={APP_VERSION}"]:
         assert f'"{path}"' in sw
+
+
+def test_index_chips_have_spoken_labels():
+    # "A–Z" e "a–z" suonano uguali a uno screen reader: servono nomi espliciti
+    html = client.get("/").text
+    for label in ("Maiuscole A–Z", "Minuscole a–z", "Numeri 0–9", "Simboli",
+                  "Escludi caratteri ambigui"):
+        assert f'aria-label="{label}' in html

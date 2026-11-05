@@ -337,6 +337,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return level;
   }
 
+  function setBusy(busy) {
+    generate.setAttribute("aria-disabled", String(busy));
+    el.copy.setAttribute("aria-disabled", String(busy));
+  }
+
   function sealOff() {
     el.stamp.classList.remove("show");
     for (const bolt of bolts) bolt.classList.remove("on");
@@ -412,8 +417,9 @@ document.addEventListener("DOMContentLoaded", () => {
     staleWhileSealing = false;
     body.classList.remove("is-stale");
     body.classList.add("is-sealing");
-    generate.disabled = true;
-    el.copy.disabled = true;
+    // aria-disabled invece di disabled: disattivare il pulsante col focus farebbe
+    // perdere la posizione a chi usa la tastiera. Il blocco vero e' `sealing`.
+    setBusy(true);
     document.dispatchEvent(new CustomEvent("vaultforge:generate"));
 
     const password = generatePassword(opts);
@@ -436,8 +442,7 @@ document.addEventListener("DOMContentLoaded", () => {
       el.srStatus.textContent = `Nuova password generata: ${level.label.toLowerCase()}.`;
       sealing = false;
       body.classList.remove("is-sealing");
-      generate.disabled = false;
-      el.copy.disabled = false;
+      setBusy(false);
       if (staleWhileSealing) markStale();
     };
 
@@ -491,6 +496,7 @@ document.addEventListener("DOMContentLoaded", () => {
   generate.addEventListener("click", seal);
 
   el.copy.addEventListener("click", async () => {
+    if (sealing) return; // mai copiare una password non ancora sigillata
     let ok = false;
     try {
       await navigator.clipboard.writeText(current);
@@ -500,6 +506,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     showToast(ok ? "Password copiata negli appunti" : "Copia non riuscita: selezionala a mano");
   });
+
+  // Se la ruota cambia dimensione (rotazione del telefono, finestra ridimensionata)
+  // la password va riadattata al nuovo quadrante.
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(() => {
+      if (current) fitPassword(el.password, current.length);
+    }).observe(el.password.parentElement);
+  }
 
   syncForm();
   seal();

@@ -196,7 +196,7 @@ input[type="range"] { flex: 1; min-width: 0; accent-color: var(--brass); }
   border: 1px solid var(--line); border-radius: 8px;
 }
 .copy:hover { border-color: var(--brass-dim); }
-.gen:disabled, .copy:disabled { cursor: progress; opacity: 0.6; }
+.gen[aria-disabled="true"], .copy[aria-disabled="true"] { cursor: progress; opacity: 0.6; }
 
 /* livelli di robustezza */
 body[data-level="very-strong"] { --lvl: var(--brass-hi); }
