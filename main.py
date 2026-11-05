@@ -1,7 +1,7 @@
 """VaultForge: web app e API per la generazione di password."""
 
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, HTMLResponse
@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 import generator
+import passphrase
 
 APP_NAME = "VaultForge"
 # Incrementala a ogni rilascio: invalida la cache del service worker.
@@ -122,6 +123,31 @@ async def api_generate(
     return {
         "password": password,
         "length": length,
+        "entropy_bits": round(bits, 1),
+        "strength": generator.strength(bits),
+    }
+
+
+@app.get("/api/v1/passphrase", tags=["passphrase"])
+async def api_passphrase(
+    words: Annotated[
+        int, Query(ge=passphrase.MIN_WORDS, le=passphrase.MAX_WORDS)
+    ] = passphrase.DEFAULT_WORDS,
+    capitalize: bool = True,
+    number: bool = True,
+    separator: Literal["-", ".", "_", "space"] = "-",
+):
+    options = passphrase.PassphraseOptions(
+        words=words, capitalize=capitalize, number=number, separator=separator
+    )
+    try:
+        text = passphrase.generate_passphrase(options)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    bits = passphrase.entropy_bits(options)
+    return {
+        "passphrase": text,
+        "words": words,
         "entropy_bits": round(bits, 1),
         "strength": generator.strength(bits),
     }

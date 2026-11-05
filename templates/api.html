@@ -94,5 +94,41 @@
             <li>Nessun tipo di carattere attivo: <code>lower</code>, <code>upper</code>, <code>digits</code> e <code>symbols</code> tutti a <code>false</code>.</li>
         </ul>
     </section>
+
+    <section class="docs-sec" id="passphrase">
+        <h2>Passphrase</h2>
+        <p class="endpoint"><span class="method">GET</span> <code>/api/v1/passphrase</code></p>
+        <p>Genera una passphrase di parole italiane, pensata per le password da ricordare e digitare a mano: computer, gestore di password, Wi-Fi. Le parole vengono estratte a caso da una lista di 2.048 parole, con la stessa garanzia crittografica delle password. Come per <code>/api/v1/generate</code>, la passphrase nasce sul server, non viene salvata né registrata e la risposta porta <code>Cache-Control: no-store</code>.</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th scope="col">Parametro</th><th scope="col">Tipo</th><th scope="col">Predefinito</th><th scope="col">Descrizione</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>words</code></td><td>intero, 4–10</td><td>7</td><td>Numero di parole.</td></tr>
+                    <tr><td><code>capitalize</code></td><td>booleano</td><td>true</td><td>Prima lettera della prima parola maiuscola.</td></tr>
+                    <tr><td><code>number</code></td><td>booleano</td><td>true</td><td>Una cifra casuale in fondo all'ultima parola.</td></tr>
+                    <tr><td><code>separator</code></td><td><code>-</code> <code>.</code> <code>_</code> <code>space</code></td><td><code>-</code></td><td>Carattere tra le parole; <code>space</code> indica lo spazio.</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="term">
+            <div class="term-bar"><i></i><i></i><i></i><span>Richiesta</span></div>
+<pre><span class="p">$</span> curl -s "https://ai-password-generator-twpu.onrender.com/api/v1/passphrase"</pre>
+        </div>
+        <div class="term">
+            <div class="term-bar"><i></i><i></i><i></i><span>Risposta · 200 OK</span></div>
+<pre>{
+  "passphrase": "Sfacelo-uragano-grattare-oscurare-puntare-dozzina-monile7",
+  "words": 7,
+  "entropy_bits": 80.3,
+  "strength": "strong"
+}</pre>
+        </div>
+        <p>Entropia: parole × 11 bit (log₂ di 2.048), più 3,3 bit per la cifra finale. Maiuscola e posizione della cifra sono fisse, quindi non aggiungono bit: servono a rispettare le regole sulle password dei computer aziendali. Il calcolo vale anche se un attaccante conosce la lista, perché le parole le sceglie il computer a caso. I livelli di <code>strength</code> sono gli stessi delle password.</p>
+        <p>Errori <code>422</code>: <code>words</code> fuori da 4–10, oppure <code>separator</code> diverso dai quattro valori ammessi.</p>
+    </section>
+
+    <p class="docs-credit">Lista di parole: BIP-39 italiano, licenza MIT.</p>
 </main>
 {% endblock %}

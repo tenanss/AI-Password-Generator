@@ -190,3 +190,28 @@ def test_head_request_shows_security_headers(path):
     assert res.status_code == 200
     assert "default-src 'self'" in res.headers["content-security-policy"]
     assert "max-age=31536000" in res.headers["strict-transport-security"]
+
+
+def test_api_passphrase_defaults():
+    res = client.get("/api/v1/passphrase")
+    assert res.status_code == 200 and res.headers["cache-control"] == "no-store"
+    body = res.json()
+    assert body["words"] == 7 and len(body["passphrase"].split("-")) == 7
+    assert body["entropy_bits"] == 80.3 and body["strength"] == "strong"
+
+
+def test_api_passphrase_space_separator():
+    body = client.get("/api/v1/passphrase", params={"words": 4, "separator": "space", "number": False}).json()
+    assert len(body["passphrase"].split(" ")) == 4 and body["strength"] == "weak"
+
+
+@pytest.mark.parametrize("params", [{"words": 3}, {"words": 11}, {"separator": "x"}])
+def test_api_passphrase_rejects_bad_input(params):
+    assert client.get("/api/v1/passphrase", params=params).status_code == 422
+
+
+def test_api_docs_cover_passphrase():
+    html = client.get("/api").text
+    for needle in ("/api/v1/passphrase", "<code>words</code>", "<code>separator</code>",
+                   "<code>space</code>", "MIT"):
+        assert needle in html
