@@ -128,3 +128,22 @@ def test_manifest_uses_caveau_colors():
 def test_svg_icon_is_brass_dial():
     svg = client.get("/static/icons/icon.svg").text
     assert "#c9a35b" in svg and "<circle" in svg
+
+
+def test_index_structure():
+    html = client.get("/").text
+    for needle in ('id="come-funziona"', 'id="sicurezza"', 'href="#come-funziona"',
+                   'href="#sicurezza"', 'href="/api"', 'id="dial"', 'id="generate"',
+                   "Genera e sigilla", "sigillata", "Quattro passaggi", "Verificalo",
+                   "https://github.com/tenanss/VaultForge", "fonts.css?v="):
+        assert needle in html
+    assert 'data-option="excludeAmbiguous"' in html
+    assert 'name="theme-color" content="#0d0e11"' in html
+    assert "Aziende" not in html
+    assert "fonts.googleapis" not in html
+
+
+def test_index_chips_are_accessible_buttons():
+    html = client.get("/").text
+    assert html.count('class="chip"') == 5
+    assert html.count("aria-pressed=") == 5
