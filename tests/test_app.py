@@ -230,7 +230,7 @@ def test_index_has_mode_switch_and_passphrase_controls():
 
 def test_service_worker_caches_wordlist():
     sw = client.get("/sw.js").text
-    assert "vaultforge-1.2.0" in sw and f'"/static/js/wordlist-it.js?v={APP_VERSION}"' in sw
+    assert f"vaultforge-{APP_VERSION}" in sw and f'"/static/js/wordlist-it.js?v={APP_VERSION}"' in sw
 
 
 def test_index_explains_passphrase_security():

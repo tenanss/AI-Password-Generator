@@ -410,7 +410,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let opts = loadOptions();
   let ppOpts = loadPassphraseOptions();
-  let mode = loadMode();
+  // Se la lista di parole non si e' caricata (es. bloccata dal browser) la passphrase non e' disponibile.
+  const hasWordlist = typeof WORDLIST_IT !== "undefined" && WORDLIST_IT.length === 2048;
+  let mode = hasWordlist ? loadMode() : "password";
+  let pendingMode = null; // modalita' scelta durante il sigillo: si applica appena finisce
   let current = "";
   let currentGroups = null; // gruppi di parole della passphrase mostrata, null per le password
   let sealing = false;
@@ -440,6 +443,8 @@ document.addEventListener("DOMContentLoaded", () => {
     el.lengthLabel.textContent = isPassphrase() ? "Parole" : "Lunghezza";
     el.number.setAttribute("aria-label", isPassphrase() ? "Numero di parole" : "Lunghezza in caratteri");
     body.classList.toggle("mode-passphrase", isPassphrase());
+    el.password.setAttribute("aria-label", isPassphrase() ? "Passphrase generata" : "Password generata");
+    el.copy.setAttribute("aria-label", `Copia la ${noun()}`);
     for (const button of el.modes) button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
     for (const chip of el.chips) chip.setAttribute("aria-pressed", String(opts[chip.dataset.option]));
     for (const chip of el.ppChips) chip.setAttribute("aria-pressed", String(ppOpts[chip.dataset.pp]));
@@ -589,6 +594,13 @@ document.addEventListener("DOMContentLoaded", () => {
       sealing = false;
       body.classList.remove("is-sealing");
       setBusy(false);
+      if (pendingMode && pendingMode !== mode) {
+        const next = pendingMode;
+        pendingMode = null;
+        switchMode(next);
+        return;
+      }
+      pendingMode = null;
       if (staleWhileSealing) markStale();
     };
 
@@ -646,13 +658,26 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // Cambiando modalita' si genera subito: chi preme "Passphrase" la vuole vedere.
+  function switchMode(next) {
+    mode = next;
+    saveMode(mode);
+    syncForm();
+    seal();
+  }
+
   for (const button of el.modes) {
     button.addEventListener("click", () => {
-      if (sealing || button.dataset.mode === mode) return;
-      mode = button.dataset.mode;
-      saveMode(mode);
-      syncForm();
-      seal();
+      const next = button.dataset.mode;
+      if (next === "passphrase" && !hasWordlist) {
+        showToast("Lista di parole non disponibile: ricarica la pagina");
+        return;
+      }
+      // Durante il sigillo la scelta non si perde: si applica appena il sigillo finisce.
+      if (sealing) {
+        pendingMode = next === mode ? null : next;
+        return;
+      }
+      if (next !== mode) switchMode(next);
     });
   }
 
