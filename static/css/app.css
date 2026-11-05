@@ -342,7 +342,7 @@ body.is-stale .gen { animation: nudge 1.6s ease-in-out infinite; }
 .docs-note p { color: var(--muted); font-size: 15px; line-height: 1.6; }
 .docs-note p + p { margin-top: 8px; }
 .docs-note b { color: var(--text); font-weight: 500; }
-.docs-sec { margin-top: 56px; display: grid; gap: 16px; }
+.docs-sec { margin-top: 56px; display: grid; gap: 16px; scroll-margin-top: 80px; }
 .docs-sec h2 { font-family: var(--display); font-weight: 400; font-size: 30px; letter-spacing: -0.01em; }
 .docs-sec > p { color: var(--muted); font-size: 15px; line-height: 1.6; }
 .endpoint { font: 15px var(--mono); }
