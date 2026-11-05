@@ -1,139 +1,79 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>AI Pass</title>
-    <link rel="manifest" href="/static/manifest.json">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ app_name }}: generatore di password sicure</title>
+    <meta name="description" content="Genera password robuste direttamente sul tuo dispositivo. Nessuna password viene inviata a un server.">
+    <meta name="theme-color" content="#0b1120">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/static/icons/icon.svg" type="image/svg+xml">
+    <link rel="icon" href="/static/icons/favicon-32.png" sizes="32x32" type="image/png">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="/static/css/app.css?v={{ version }}">
+    <script src="/static/js/app.js?v={{ version }}" defer></script>
 </head>
-<body class="bg-slate-900 text-white flex items-center justify-center min-h-screen p-4 font-sans">
-    <div class="w-full max-w-md bg-slate-800 rounded-[2.5rem] p-8 shadow-2xl border border-slate-700">
-        <h1 class="text-3xl font-extrabold text-center mb-8 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent italic">
-            AI GENERATOR
-        </h1>
-        
-<div class="relative group">
-                <div class="bg-slate-900/50 p-6 rounded-2xl border border-slate-700 flex justify-between items-center shadow-inner">
-                    <span id="password-display" class="text-2xl font-mono text-cyan-300 break-all tracking-wider">********</span>
-                    <button onclick="copyToClipboard()" class="ml-2 p-2 hover:bg-slate-700 rounded-xl transition-all text-slate-400 hover:text-cyan-400 active:scale-90" title="Copia">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                    </button>
-                </div>
-                <span id="copy-toast" class="absolute -top-6 right-2 bg-cyan-500 text-white text-[10px] font-bold px-3 py-1 rounded-full opacity-0 transition-all duration-300 z-50 shadow-xl">COPIATO!</span>
+<body>
+    <main class="card">
+        <header class="brand">
+            <img src="/static/icons/icon.svg" alt="" width="44" height="44">
+            <div>
+                <h1>{{ app_name }}</h1>
+                <p class="tagline">Password robuste, generate sul tuo dispositivo.</p>
             </div>
-<div class="space-y-2 mt-4">
-                <div class="flex justify-between text-sm text-slate-400 font-medium">
-                    <span>Lunghezza:</span>
-                    <span id="length-val" class="text-cyan-400 font-bold">12</span>
-                </div>
-                <input type="range" id="length-slider" min="12" max="24" value="14" 
-                       class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-                       oninput="document.getElementById('length-val').innerText = this.value">
-            </div>
+        </header>
 
-            <div class="space-y-1">
-    <div class="h-1.5 w-full bg-slate-700 rounded-full overflow-hidden">
-        <div id="strength-bar" class="h-full bg-red-500 transition-all duration-500" style="width: 0%"></div>
-    </div>
-    <p id="strength-text" class="text-[10px] text-slate-500 uppercase tracking-tighter">AFFIDABILITÀ: MEDIA</p>
-</div>
-
-            <div class="p-3 bg-slate-900/30 rounded-xl border border-slate-700/50 mb-6">
-                <p class="text-[10px] text-slate-500 text-center leading-tight">
-                    🔒 <strong>Sicurezza Pro:</strong> Algoritmo crittografico <code>secrets</code> attivo. 
-    Generazione locale immediata, nessun dato viene trasmesso.
-</p>   
-            </div>
-
-
-            <button onclick="getAI() " class="w-full bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all py-5 rounded-2xl font-bold text-xl shadow-lg shadow-blue-500/20">
-                GENERA ORA
+        <section class="output" aria-label="Password generata">
+            <output id="password" class="password">&nbsp;</output>
+            <button id="copy" type="button" class="icon-btn" aria-label="Copia la password" title="Copia">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="9" y="9" width="12" height="12" rx="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
             </button>
-        </div>
-    </div>
+        </section>
 
-    <script>
-async function getAI() {
-            // Legge la lunghezza dallo slider
-            const len = document.getElementById('length-slider').value;
-            
-            // Chiama Python passando la lunghezza
-            const res = await fetch(`/generate?length=${len}`);
-            const data = await res.json();
-            
-            // Mostra la password
-            document.getElementById('password-display').innerText = data.password;
+        <section class="strength" aria-label="Robustezza">
+            <div class="meter" aria-hidden="true"><div id="meter-fill" class="meter-fill"></div></div>
+            <p class="strength-row">
+                <span id="strength-label" class="strength-label"></span>
+                <span id="entropy" class="muted"></span>
+            </p>
+            <p id="crack-time" class="hint"></p>
+        </section>
 
-            // Aggiorna la barra della sicurezza
-            const bar = document.getElementById('strength-bar');
-            const text = document.getElementById('strength-text');
-            
-            if (len < 10) {
-                bar.style.width = "30%"; bar.className = "h-1.5 bg-red-500 rounded-full transition-all";
-                text.innerText = "Affidabilità: Bassa";
-            } else if (len < 16) {
-                bar.style.width = "65%"; bar.className = "h-1.5 bg-yellow-500 rounded-full transition-all";
-                text.innerText = "Affidabilità: Buona";
-            } else {
-                bar.style.width = "100%"; bar.className = "h-1.5 bg-green-500 rounded-full transition-all";
-                text.innerText = "Affidabilità: Eccellente";
-            }
-        }
-function copyToClipboard() {
-    const password = document.getElementById('password-display').innerText;
-    if (password === "********" || password === "") return;
+        <form id="options" class="options" novalidate>
+            <div class="field">
+                <div class="field-head">
+                    <label for="length">Lunghezza</label>
+                    <input id="length-number" type="number" min="8" max="64" value="16" inputmode="numeric" aria-label="Lunghezza in caratteri">
+                </div>
+                <input id="length" type="range" min="8" max="64" value="16">
+            </div>
 
-    navigator.clipboard.writeText(password).then(() => {
-        const toast = document.getElementById('copy-toast');
-        
-        // Reset e animazione
-        toast.classList.remove('opacity-0');
-        toast.classList.add('opacity-100');
-        toast.style.transform = "translateY(-10px)"; // Lo fa saltare verso l'alto
-        
-        setTimeout(() => {
-            toast.classList.remove('opacity-100');
-            toast.classList.add('opacity-0');
-            toast.style.transform = "translateY(0px)";
-        }, 1500);
-    });
-}
-const slider = document.getElementById('length-slider');
-const strengthBar = document.getElementById('strength-bar');
-const strengthText = document.getElementById('strength-text');
-const lengthVal = document.getElementById('length-val');
+            <fieldset class="checks">
+                <legend>Caratteri</legend>
+                <label class="check"><input type="checkbox" name="upper" checked><span>Maiuscole <code>A–Z</code></span></label>
+                <label class="check"><input type="checkbox" name="lower" checked><span>Minuscole <code>a–z</code></span></label>
+                <label class="check"><input type="checkbox" name="digits" checked><span>Numeri <code>0–9</code></span></label>
+                <label class="check"><input type="checkbox" name="symbols" checked><span>Simboli <code>!@#$…</code></span></label>
+                <label class="check"><input type="checkbox" name="excludeAmbiguous"><span>Escludi caratteri ambigui <code>0 O o 1 l I</code></span></label>
+            </fieldset>
+        </form>
 
-function updateStrength(val) {
-    // Aggiorna il numeretto della lunghezza accanto allo slider
-    lengthVal.innerText = val;
-    
-    // Calcola la percentuale di riempimento (basata sul range 12-24)
-    const percent = ((val - 12) / (24 - 12)) * 100;
-    strengthBar.style.width = percent + '%';
+        <button id="generate" type="button" class="primary">Genera nuova password</button>
 
-    // Gestione dinamica di colori e messaggi
-    if (val < 16) {
-        strengthBar.className = 'h-full bg-red-500 transition-all duration-500';
-        strengthText.innerText = 'AFFIDABILITÀ: MEDIA';
-    } else if (val < 20) {
-        strengthBar.className = 'h-full bg-yellow-500 transition-all duration-500';
-        strengthText.innerText = 'AFFIDABILITÀ: ALTA';
-    } else {
-        strengthBar.className = 'h-full bg-green-500 transition-all duration-500';
-        strengthText.innerText = 'AFFIDABILITÀ: CRITTOGRAFICA';
-    }
-}
+        <p class="privacy">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="4" y="11" width="16" height="10" rx="2"></rect>
+                <path d="M8 11V7a4 4 0 0 1 8 0v4"></path>
+            </svg>
+            <span>Generata nel browser con la crittografia del dispositivo (Web Crypto). La password non viene mai inviata a un server.</span>
+        </p>
 
-// Evento che scatta ogni volta che sposti lo slider
-slider.oninput = function() {
-    updateStrength(this.value);
-};
+        <noscript><p class="hint">Per generare le password è necessario JavaScript.</p></noscript>
+    </main>
 
-// Inizializzazione al caricamento della pagina
-updateStrength(slider.value);
-    </script>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
