@@ -121,10 +121,10 @@
         </div>
 
         <ol class="steps4">
-            <li class="reveal"><span>01</span><h3>Scegli le regole</h3><p>Lunghezza da 8 a 64 caratteri, tipi di caratteri, esclusione di quelli che si confondono (<code>0 O o 1 l I</code>). Il browser ricorda le tue preferenze, mai le password.</p></li>
+            <li class="reveal"><span>01</span><h3>Scegli le regole</h3><p>Password da 8 a 64 caratteri, con i tipi di caratteri che vuoi, oppure passphrase da 4 a 10 parole italiane con il separatore che preferisci. Il browser ricorda le tue preferenze, mai le password.</p></li>
             <li class="reveal"><span>02</span><h3>Casualità crittografica</h3><p><code>crypto.getRandomValues</code> attinge al generatore casuale del sistema operativo, lo stesso usato per le chiavi delle connessioni sicure. Mai <code>Math.random</code>.</p></li>
             <li class="reveal"><span>03</span><h3>Composizione senza scorciatoie</h3><p>Ogni carattere viene estratto con campionamento a rifiuto, così nessuno esce più spesso degli altri. C'è almeno un carattere per ogni tipo scelto, poi un mescolamento Fisher–Yates.</p></li>
-            <li class="reveal"><span>04</span><h3>Misura onesta</h3><p>Entropia = lunghezza × log₂(caratteri possibili). Il tempo d'attacco stima metà delle combinazioni a 10 miliardi di tentativi al secondo: uno scenario offline con hardware dedicato.</p></li>
+            <li class="reveal"><span>04</span><h3>Misura onesta</h3><p>Entropia = lunghezza × log₂(caratteri possibili). Passphrase: parole × 11 bit (lista di 2.048 parole), più 3,3 bit per la cifra. Il tempo d'attacco stima metà delle combinazioni a 10 miliardi di tentativi al secondo: uno scenario offline con hardware dedicato.</p></li>
         </ol>
     </section>
 
@@ -173,6 +173,8 @@
                 <div class="verify"><b>Verifica</b> Apri <code>static/js/app.js</code> nel repository.</div>
             </article>
         </div>
+
+        <p class="sec-note reveal">Le passphrase restano robuste anche se un attaccante conosce la lista: le parole le sceglie il computer a caso. Una passphrase con parole scelte da una persona è molto più debole.</p>
 
         <div class="sec-bottom">
             <div class="term reveal">

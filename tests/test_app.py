@@ -171,7 +171,7 @@ def test_api_docs_examples_match_api():
 
 def test_service_worker_caches_new_assets():
     sw = client.get("/sw.js").text
-    assert "vaultforge-1.1.0" in sw
+    assert f"vaultforge-{APP_VERSION}" in sw
     for path in FONT_FILES + ["/api", f"/static/css/fonts.css?v={APP_VERSION}"]:
         assert f'"{path}"' in sw
 
@@ -226,3 +226,13 @@ def test_index_has_mode_switch_and_passphrase_controls():
         assert needle in html
     assert html.index("wordlist-it.js") < html.index("js/app.js")
     assert "style=" not in html and "<script>" not in html
+
+
+def test_service_worker_caches_wordlist():
+    sw = client.get("/sw.js").text
+    assert "vaultforge-1.2.0" in sw and f'"/static/js/wordlist-it.js?v={APP_VERSION}"' in sw
+
+
+def test_index_explains_passphrase_security():
+    html = client.get("/").text
+    assert "passphrase" in html.lower() and "11 bit" in html and "conosce la lista" in html
