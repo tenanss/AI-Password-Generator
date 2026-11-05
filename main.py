@@ -55,6 +55,16 @@ async def index(request: Request):
     )
 
 
+@app.get("/api", response_class=HTMLResponse, include_in_schema=False)
+async def api_docs(request: Request):
+    # Documentazione scritta a mano: quella automatica di FastAPI resta disattivata.
+    return templates.TemplateResponse(
+        request,
+        "api.html",
+        {"app_name": APP_NAME, "version": APP_VERSION, "home": "/"},
+    )
+
+
 @app.get("/sw.js", include_in_schema=False)
 async def service_worker(request: Request):
     # Servito dalla radice perche' il service worker controlli tutto il sito.

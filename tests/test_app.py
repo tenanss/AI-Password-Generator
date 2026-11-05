@@ -147,3 +147,22 @@ def test_index_chips_are_accessible_buttons():
     html = client.get("/").text
     assert html.count('class="chip"') == 5
     assert html.count("aria-pressed=") == 5
+
+
+def test_api_docs_page():
+    res = client.get("/api")
+    assert res.status_code == 200
+    assert res.headers["content-type"].startswith("text/html")
+    assert "script-src 'self'" in res.headers["content-security-policy"]
+    html = res.text
+    for needle in ("/api/v1/generate", "length", "exclude_ambiguous", "very_strong",
+                   "422", "no-store", "curl", 'href="/#sicurezza"'):
+        assert needle in html
+    assert "<script>" not in html and "style=" not in html
+
+
+def test_api_docs_examples_match_api():
+    # i nomi dei parametri documentati sono quelli che l'API accetta davvero
+    html = client.get("/api").text
+    for param in ("lower", "upper", "digits", "symbols"):
+        assert f"<code>{param}</code>" in html

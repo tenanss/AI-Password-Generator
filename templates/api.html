@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block title %}Documentazione API · {{ app_name }}{% endblock %}
+{% block description %}Documentazione dell'API REST di VaultForge per generare password: parametri, esempi, risposte ed errori.{% endblock %}
+{% block body_class %}page-docs{% endblock %}
+
+{% block content %}
+<main class="docs">
+    <header class="docs-head">
+        <p class="eyebrow">DOCUMENTAZIONE API</p>
+        <h1>Password per i tuoi <em>script</em> e strumenti.</h1>
+        <p class="lead">Un solo endpoint, <code>GET /api/v1/generate</code>, con la stessa logica del generatore nel browser: casualità crittografica, nessun carattere favorito, almeno un carattere per ogni tipo scelto.</p>
+    </header>
+
+    <aside class="docs-note">
+        <h2>Dove nasce la password</h2>
+        <p>Le password richieste tramite API vengono generate <b>sul server</b>, perché è lì che l'API vive. Non vengono salvate né registrate, e ogni risposta porta l'header <code>Cache-Control: no-store</code>, così non finiscono in nessuna cache.</p>
+        <p>Per la massima riservatezza usa il <a href="/">generatore nel browser</a>: lì la password non lascia mai il tuo dispositivo.</p>
+    </aside>
+
+    <section class="docs-sec">
+        <h2>Richiesta</h2>
+        <p class="endpoint"><span class="method">GET</span> <code>/api/v1/generate</code></p>
+        <p>Tutti i parametri sono facoltativi e vanno nella query string. I valori booleani accettano <code>true</code> o <code>false</code>.</p>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th scope="col">Parametro</th><th scope="col">Tipo</th><th scope="col">Predefinito</th><th scope="col">Descrizione</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>length</code></td><td>intero, 8–128</td><td>16</td><td>Numero di caratteri della password.</td></tr>
+                    <tr><td><code>lower</code></td><td>booleano</td><td>true</td><td>Minuscole <code>a–z</code>.</td></tr>
+                    <tr><td><code>upper</code></td><td>booleano</td><td>true</td><td>Maiuscole <code>A–Z</code>.</td></tr>
+                    <tr><td><code>digits</code></td><td>booleano</td><td>true</td><td>Numeri <code>0–9</code>.</td></tr>
+                    <tr><td><code>symbols</code></td><td>booleano</td><td>true</td><td>Simboli <code>!@#$%^&amp;*()-_=+[]{};:,.&lt;&gt;?/~</code>.</td></tr>
+                    <tr><td><code>exclude_ambiguous</code></td><td>booleano</td><td>false</td><td>Esclude i caratteri che si confondono: <code>0 O o 1 l I</code>.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="docs-sec">
+        <h2>Esempio</h2>
+        <div class="term">
+            <div class="term-bar"><i></i><i></i><i></i><span>Richiesta</span></div>
+<pre><span class="p">$</span> curl -s "https://ai-password-generator-twpu.onrender.com/api/v1/generate?length=24&amp;symbols=false"</pre>
+        </div>
+        <div class="term">
+            <div class="term-bar"><i></i><i></i><i></i><span>Risposta · 200 OK</span></div>
+<pre>{
+  "password": "15Ftg4w6TfRetmE7dl4FtoWm",
+  "length": 24,
+  "entropy_bits": 142.9,
+  "strength": "very_strong"
+}</pre>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr><th scope="col">Campo</th><th scope="col">Significato</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td><code>password</code></td><td>La password generata.</td></tr>
+                    <tr><td><code>length</code></td><td>La lunghezza richiesta.</td></tr>
+                    <tr><td><code>entropy_bits</code></td><td>Bit di entropia: lunghezza × log₂(caratteri possibili), arrotondati a un decimale.</td></tr>
+                    <tr><td><code>strength</code></td><td>Livello di robustezza, vedi sotto.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="docs-sec">
+        <h2>Livelli di robustezza</h2>
+        <div class="table-wrap">
+            <table class="levels">
+                <thead>
+                    <tr><th scope="col">Valore di <code>strength</code></th><th scope="col">Entropia</th><th scope="col">Sulla pagina</th></tr>
+                </thead>
+                <tbody>
+                    <tr class="lv-weak"><td><code>weak</code></td><td>meno di 50 bit</td><td>Debole</td></tr>
+                    <tr class="lv-fair"><td><code>fair</code></td><td>da 50 a meno di 70 bit</td><td>Discreta</td></tr>
+                    <tr class="lv-strong"><td><code>strong</code></td><td>da 70 a meno di 100 bit</td><td>Forte</td></tr>
+                    <tr class="lv-very-strong"><td><code>very_strong</code></td><td>100 bit o più</td><td>Molto forte</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="docs-sec">
+        <h2>Errori</h2>
+        <p>Una richiesta non valida riceve la risposta <code>422 Unprocessable Content</code>, con il motivo nel campo <code>detail</code>. Succede in due casi:</p>
+        <ul class="docs-list">
+            <li><code>length</code> fuori dai limiti: meno di 8 o più di 128 caratteri.</li>
+            <li>Nessun tipo di carattere attivo: <code>lower</code>, <code>upper</code>, <code>digits</code> e <code>symbols</code> tutti a <code>false</code>.</li>
+        </ul>
+    </section>
+</main>
+{% endblock %}

@@ -311,6 +311,39 @@ body.is-stale .gen { animation: nudge 1.6s ease-in-out infinite; }
 .api-note p { color: var(--muted); font-size: 14.5px; line-height: 1.6; }
 .api-note a { display: inline-block; margin-top: 14px; font-weight: 500; text-decoration: none; }
 
+/* ---------- documentazione API ---------- */
+.docs { max-width: 860px; margin: 0 auto; padding: 50px var(--gutter) 20px; }
+.docs-head h1 { font-size: clamp(34px, 4.6vw, 54px); }
+.docs-head h1 em { font-style: italic; color: var(--brass-hi); }
+.docs-note {
+  margin: 40px 0 10px; padding: 22px 24px;
+  background: rgba(201, 163, 91, 0.04); border: 1px solid var(--brass-dim); border-radius: 14px;
+}
+.docs-note h2 { font-family: var(--display); font-weight: 400; font-size: 22px; margin-bottom: 8px; }
+.docs-note p { color: var(--muted); font-size: 15px; line-height: 1.6; }
+.docs-note p + p { margin-top: 8px; }
+.docs-note b { color: var(--text); font-weight: 500; }
+.docs-sec { margin-top: 56px; display: grid; gap: 16px; }
+.docs-sec h2 { font-family: var(--display); font-weight: 400; font-size: 30px; letter-spacing: -0.01em; }
+.docs-sec > p { color: var(--muted); font-size: 15px; line-height: 1.6; }
+.endpoint { font: 15px var(--mono); }
+.method {
+  display: inline-block; margin-right: 6px; padding: 3px 9px; border-radius: 5px;
+  font: 600 12px var(--mono); letter-spacing: 0.1em; color: #16130c; background: var(--brass);
+}
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 11px 14px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
+tbody tr:last-child td { border-bottom: 0; }
+th { font: 600 11px var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); background: #121316; }
+td { color: var(--muted); line-height: 1.5; }
+td:first-child { white-space: nowrap; }
+.levels .lv-weak td:last-child { color: var(--weak); }
+.levels .lv-fair td:last-child { color: var(--fair); }
+.levels .lv-strong td:last-child { color: var(--brass); }
+.levels .lv-very-strong td:last-child { color: var(--brass-hi); }
+.docs-list { padding-left: 20px; display: grid; gap: 8px; color: var(--muted); font-size: 15px; line-height: 1.6; }
+
 /* ---------- footer e avvisi ---------- */
 .foot {
   max-width: var(--wrap); margin: 80px auto 0; padding: 30px var(--gutter) 50px;
