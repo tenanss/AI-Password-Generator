@@ -12,7 +12,7 @@ import generator
 
 APP_NAME = "VaultForge"
 # Incrementala a ogni rilascio: invalida la cache del service worker.
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"

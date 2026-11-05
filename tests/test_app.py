@@ -166,3 +166,10 @@ def test_api_docs_examples_match_api():
     html = client.get("/api").text
     for param in ("lower", "upper", "digits", "symbols"):
         assert f"<code>{param}</code>" in html
+
+
+def test_service_worker_caches_new_assets():
+    sw = client.get("/sw.js").text
+    assert "vaultforge-1.1.0" in sw
+    for path in FONT_FILES + ["/api", f"/static/css/fonts.css?v={APP_VERSION}"]:
+        assert f'"{path}"' in sw

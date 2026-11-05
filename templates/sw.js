@@ -3,6 +3,8 @@
 const CACHE = "vaultforge-{{ version }}";
 const ASSETS = [
   "/",
+  "/api",
+  "/static/css/fonts.css?v={{ version }}",
   "/static/css/app.css?v={{ version }}",
   "/static/js/app.js?v={{ version }}",
   "/manifest.webmanifest",
@@ -10,7 +12,14 @@ const ASSETS = [
   "/static/icons/icon-192.png",
   "/static/icons/icon-512.png",
   "/static/icons/favicon-32.png",
+  "/static/icons/apple-touch-icon.png",
+  "/static/fonts/fraunces-latin.woff2",
+  "/static/fonts/fraunces-italic-latin.woff2",
+  "/static/fonts/inter-latin.woff2",
+  "/static/fonts/jetbrains-mono-latin.woff2",
 ];
+// Pagine servite "prima la rete, poi la cache" (per avere sempre la versione nuova).
+const PAGES = ["/", "/api"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -40,13 +49,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok && url.pathname === "/") {
+          if (response.ok && PAGES.includes(url.pathname)) {
             const copy = response.clone();
-            caches.open(CACHE).then((cache) => cache.put("/", copy));
+            caches.open(CACHE).then((cache) => cache.put(url.pathname, copy));
           }
           return response;
         })
-        .catch(() => caches.match("/"))
+        .catch(() => caches.match(PAGES.includes(url.pathname) ? url.pathname : "/"))
     );
     return;
   }
