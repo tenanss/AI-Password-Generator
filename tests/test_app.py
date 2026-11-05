@@ -1,6 +1,8 @@
+import io
 import json
 
 import pytest
+from PIL import Image
 from fastapi.testclient import TestClient
 
 import generator
@@ -102,3 +104,27 @@ def test_fonts_css_declares_local_faces():
         assert f'font-family: "{family}"' in css
     assert "font-style: italic" in css
     assert "http" not in css
+
+
+@pytest.mark.parametrize("path,size", [
+    ("/static/icons/favicon-32.png", 32),
+    ("/static/icons/apple-touch-icon.png", 180),
+    ("/static/icons/icon-192.png", 192),
+    ("/static/icons/icon-512.png", 512),
+    ("/static/icons/icon-maskable-512.png", 512),
+])
+def test_icon_sizes_and_palette(path, size):
+    img = Image.open(io.BytesIO(client.get(path).content)).convert("RGB")
+    assert img.size == (size, size)
+    assert img.getpixel((size // 2, size // 2)) == (13, 14, 17)  # centro grafite
+
+
+def test_manifest_uses_caveau_colors():
+    data = json.loads(client.get("/manifest.webmanifest").content)
+    assert data["theme_color"] == "#0d0e11"
+    assert data["background_color"] == "#0d0e11"
+
+
+def test_svg_icon_is_brass_dial():
+    svg = client.get("/static/icons/icon.svg").text
+    assert "#c9a35b" in svg and "<circle" in svg
