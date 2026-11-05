@@ -353,6 +353,7 @@ td:first-child { white-space: nowrap; }
 .toast {
   position: fixed; left: 50%; bottom: 28px; z-index: 20;
   transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+  width: max-content; max-width: calc(100vw - 32px); text-align: center;
   padding: 10px 16px; border-radius: 8px; font-size: 13px;
   background: #1f2025; border: 1px solid var(--brass-dim); color: var(--brass-hi);
   transition: opacity 0.25s, transform 0.25s;

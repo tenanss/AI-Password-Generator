@@ -181,3 +181,12 @@ def test_index_chips_have_spoken_labels():
     for label in ("Maiuscole A–Z", "Minuscole a–z", "Numeri 0–9", "Simboli",
                   "Escludi caratteri ambigui"):
         assert f'aria-label="{label}' in html
+
+
+@pytest.mark.parametrize("path", ["/", "/api"])
+def test_head_request_shows_security_headers(path):
+    # Il comando "curl -sI" della sezione Sicurezza usa HEAD: deve rispondere 200
+    res = client.head(path)
+    assert res.status_code == 200
+    assert "default-src 'self'" in res.headers["content-security-policy"]
+    assert "max-age=31536000" in res.headers["strict-transport-security"]

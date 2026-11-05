@@ -48,14 +48,15 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
-@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+# Anche HEAD: e' quello che usa "curl -I", il comando suggerito nella sezione Sicurezza.
+@app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
 async def index(request: Request):
     return templates.TemplateResponse(
         request, "index.html", {"app_name": APP_NAME, "version": APP_VERSION}
     )
 
 
-@app.get("/api", response_class=HTMLResponse, include_in_schema=False)
+@app.api_route("/api", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
 async def api_docs(request: Request):
     # Documentazione scritta a mano: quella automatica di FastAPI resta disattivata.
     return templates.TemplateResponse(

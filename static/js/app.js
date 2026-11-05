@@ -504,7 +504,11 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch {
       ok = fallbackCopy(current);
     }
-    showToast(ok ? "Password copiata negli appunti" : "Copia non riuscita: selezionala a mano");
+    if (!ok) showToast("Copia non riuscita: selezionala a mano");
+    else if (body.classList.contains("is-stale")) {
+      // Le opzioni sono cambiate: si e' copiata la password mostrata (sfocata), non una nuova.
+      showToast("Password precedente copiata: premi «Genera e sigilla» per una nuova");
+    } else showToast("Password copiata negli appunti");
   });
 
   // Se la ruota cambia dimensione (rotazione del telefono, finestra ridimensionata)
