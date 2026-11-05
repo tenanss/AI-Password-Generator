@@ -1,5 +1,6 @@
 import io
 import json
+import re
 
 import pytest
 from PIL import Image
@@ -145,8 +146,8 @@ def test_index_structure():
 
 def test_index_chips_are_accessible_buttons():
     html = client.get("/").text
-    assert html.count('class="chip"') == 5
-    assert html.count("aria-pressed=") == 5
+    # le 5 pillole dei caratteri sono pulsanti con stato premuto/non premuto
+    assert len(re.findall(r'class="chip" data-option="[^"]+" aria-pressed="(?:true|false)"', html)) == 5
 
 
 def test_api_docs_page():
@@ -215,3 +216,13 @@ def test_api_docs_cover_passphrase():
     for needle in ("/api/v1/passphrase", "<code>words</code>", "<code>separator</code>",
                    "<code>space</code>", "MIT"):
         assert needle in html
+
+
+def test_index_has_mode_switch_and_passphrase_controls():
+    html = client.get("/").text
+    for needle in ('data-mode="password"', 'data-mode="passphrase"', 'data-pp="capitalize"',
+                   'data-pp="number"', 'data-separator="space"', "Cifra finale",
+                   "Per le password da ricordare e digitare", f"wordlist-it.js?v={APP_VERSION}"):
+        assert needle in html
+    assert html.index("wordlist-it.js") < html.index("js/app.js")
+    assert "style=" not in html and "<script>" not in html

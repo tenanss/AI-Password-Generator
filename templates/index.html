@@ -17,6 +17,10 @@
         </div>
 
         <div class="vault">
+            <div class="modes" role="group" aria-label="Tipo di password">
+                <button type="button" class="mode" data-mode="password" aria-pressed="true">Password</button>
+                <button type="button" class="mode" data-mode="passphrase" aria-pressed="false">Passphrase</button>
+            </div>
             <div class="dial-wrap">
                 <svg id="dial" viewBox="0 0 400 400" aria-hidden="true">
                     <defs>
@@ -51,18 +55,29 @@
                 <p id="crack-time" class="crack">&nbsp;</p>
 
                 <div class="row">
-                    <label for="length">Lunghezza</label>
+                    <label for="length" id="length-label">Lunghezza</label>
                     <input id="length-number" class="length-number" type="number" min="8" max="64" value="16" inputmode="numeric" aria-label="Lunghezza in caratteri">
                     <input id="length" type="range" min="8" max="64" value="16">
                 </div>
 
-                <div class="chips" role="group" aria-label="Caratteri">
+                <div class="chips pw-only" role="group" aria-label="Caratteri">
                     <button type="button" class="chip" data-option="upper" aria-pressed="true" aria-label="Maiuscole A–Z">A–Z</button>
                     <button type="button" class="chip" data-option="lower" aria-pressed="true" aria-label="Minuscole a–z">a–z</button>
                     <button type="button" class="chip" data-option="digits" aria-pressed="true" aria-label="Numeri 0–9">0–9</button>
                     <button type="button" class="chip" data-option="symbols" aria-pressed="true" aria-label="Simboli">!@#$</button>
                     <button type="button" class="chip" data-option="excludeAmbiguous" aria-pressed="false" aria-label="Escludi caratteri ambigui (0 O o 1 l I)">senza ambigui</button>
                 </div>
+
+                <div class="chips pp-only" role="group" aria-label="Opzioni della passphrase">
+                    <button type="button" class="chip" data-pp="capitalize" aria-pressed="true" aria-label="Iniziale maiuscola">Maiuscola</button>
+                    <button type="button" class="chip" data-pp="number" aria-pressed="true" aria-label="Cifra finale">Cifra finale</button>
+                    <span class="sep-label" aria-hidden="true">separatore</span>
+                    <button type="button" class="chip" data-separator="-" aria-pressed="true" aria-label="Separatore trattino">-</button>
+                    <button type="button" class="chip" data-separator="." aria-pressed="false" aria-label="Separatore punto">.</button>
+                    <button type="button" class="chip" data-separator="_" aria-pressed="false" aria-label="Separatore trattino basso">_</button>
+                    <button type="button" class="chip" data-separator="space" aria-pressed="false" aria-label="Separatore spazio">spazio</button>
+                </div>
+                <p class="hint-pp pp-only">Per le password da ricordare e digitare: computer, gestore di password, Wi-Fi.</p>
 
                 <div class="actions">
                     <button id="generate" type="button" class="gen">Genera e sigilla</button>
