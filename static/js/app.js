@@ -143,6 +143,82 @@ function fallbackCopy(text) {
   return ok;
 }
 
+// ---------------------------------------------------------------------------
+// Passphrase: parole italiane BIP-39 (WORDLIST_IT, da wordlist-it.js).
+// Stessa logica di passphrase.py: se cambi lista, regole o valori, aggiornali anche li'.
+// ---------------------------------------------------------------------------
+
+const PP_STORAGE_KEY = "vaultforge:passphrase";
+const MODE_STORAGE_KEY = "vaultforge:mode";
+const PP_MIN_WORDS = 4;
+const PP_MAX_WORDS = 10;
+const PP_SEPARATORS = { "-": "-", ".": ".", _: "_", space: " " };
+const PP_DEFAULTS = { words: 7, capitalize: true, number: true, separator: "-" };
+const MODES = ["password", "passphrase"];
+
+/** Parole estratte senza bias; maiuscola e cifra in posizione fissa (regole aziendali). */
+function generatePassphrase(pp) {
+  const words = [];
+  for (let i = 0; i < pp.words; i++) words.push(WORDLIST_IT[randomInt(WORDLIST_IT.length)]);
+  if (pp.capitalize) words[0] = words[0][0].toUpperCase() + words[0].slice(1);
+  if (pp.number) words[words.length - 1] += String(randomInt(10));
+  const separator = PP_SEPARATORS[pp.separator];
+  const groups = words.map((word, i) => (i < words.length - 1 ? word + separator : word));
+  return { text: groups.join(""), groups };
+}
+
+/** Contano solo le scelte casuali: le parole e, se presente, la cifra. */
+function passphraseEntropyBits(pp) {
+  return pp.words * Math.log2(WORDLIST_IT.length) + (pp.number ? Math.log2(10) : 0);
+}
+
+function clampWords(value) {
+  const n = Number.parseInt(value, 10);
+  if (Number.isNaN(n)) return PP_DEFAULTS.words;
+  return Math.min(PP_MAX_WORDS, Math.max(PP_MIN_WORDS, n));
+}
+
+// Nel browser si salvano solo le preferenze, mai le passphrase.
+function loadPassphraseOptions() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(PP_STORAGE_KEY) || "null");
+    if (!saved || typeof saved !== "object") return { ...PP_DEFAULTS };
+    return {
+      words: saved.words === undefined ? PP_DEFAULTS.words : clampWords(saved.words),
+      capitalize: typeof saved.capitalize === "boolean" ? saved.capitalize : PP_DEFAULTS.capitalize,
+      number: typeof saved.number === "boolean" ? saved.number : PP_DEFAULTS.number,
+      separator: Object.hasOwn(PP_SEPARATORS, saved.separator) ? saved.separator : PP_DEFAULTS.separator,
+    };
+  } catch {
+    return { ...PP_DEFAULTS };
+  }
+}
+
+function savePassphraseOptions(pp) {
+  try {
+    localStorage.setItem(PP_STORAGE_KEY, JSON.stringify(pp));
+  } catch {
+    /* archiviazione non disponibile */
+  }
+}
+
+function loadMode() {
+  try {
+    const saved = localStorage.getItem(MODE_STORAGE_KEY);
+    return MODES.includes(saved) ? saved : "password";
+  } catch {
+    return "password";
+  }
+}
+
+function saveMode(mode) {
+  try {
+    localStorage.setItem(MODE_STORAGE_KEY, mode);
+  } catch {
+    /* archiviazione non disponibile */
+  }
+}
+
 
 // ---------------------------------------------------------------------------
 // Interfaccia "Caveau": ruota della cassaforte, sigillo e anteprima delle opzioni.
@@ -203,7 +279,26 @@ function buildDial(ticks, boltsGroup) {
 /** Righe e dimensione del carattere perche' la password stia nel quadrante. */
 function fitPassword(output, length) {
   const lines = length <= 16 ? 1 : length <= 32 ? 2 : length <= 48 ? 3 : 4;
-  const perLine = Math.ceil(length / lines);
+  fitBlock(output, lines, Math.ceil(length / lines));
+}
+
+/** Come fitPassword, ma le righe vanno a capo solo tra una parola e l'altra. */
+function fitPassphrase(output, groups) {
+  const longest = Math.max(...groups.map((group) => group.length));
+  const perLine = Math.max(longest, Math.min(22, longest * 2));
+  let lines = 1;
+  let used = 0;
+  for (const group of groups) {
+    if (used && used + group.length > perLine) {
+      lines += 1;
+      used = 0;
+    }
+    used += group.length;
+  }
+  fitBlock(output, lines, perLine);
+}
+
+function fitBlock(output, lines, perLine) {
   // Raggio utile del quadrante (cerchio r=118 su 400) con un piccolo margine.
   const radius = (118 / 400) * output.parentElement.clientWidth * 0.94;
   const stampHeight = 54; // timbro (circa 39 px ruotato) e il suo margine, sotto la password
@@ -302,6 +397,10 @@ document.addEventListener("DOMContentLoaded", () => {
     range: document.getElementById("length"),
     number: document.getElementById("length-number"),
     chips: [...document.querySelectorAll(".chip[data-option]")],
+    ppChips: [...document.querySelectorAll(".chip[data-pp]")],
+    sepChips: [...document.querySelectorAll(".chip[data-separator]")],
+    modes: [...document.querySelectorAll(".mode[data-mode]")],
+    lengthLabel: document.getElementById("length-label"),
     copy: document.getElementById("copy"),
     toast: document.getElementById("toast"),
     ring: document.getElementById("dial-ring"),
@@ -310,7 +409,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const bolts = buildDial(document.getElementById("dial-ticks"), document.getElementById("dial-bolts"));
 
   let opts = loadOptions();
+  let ppOpts = loadPassphraseOptions();
+  // Se la lista di parole non si e' caricata (es. bloccata dal browser) la passphrase non e' disponibile.
+  const hasWordlist = typeof WORDLIST_IT !== "undefined" && WORDLIST_IT.length === 2048;
+  let mode = hasWordlist ? loadMode() : "password";
+  let pendingMode = null; // modalita' scelta durante il sigillo: si applica appena finisce
   let current = "";
+  let currentGroups = null; // gruppi di parole della passphrase mostrata, null per le password
   let sealing = false;
   let staleWhileSealing = false;
   let ringAngle = 0;
@@ -323,10 +428,58 @@ document.addEventListener("DOMContentLoaded", () => {
     toastTimer = setTimeout(() => el.toast.classList.remove("visible"), 2000);
   }
 
+  const isPassphrase = () => mode === "passphrase";
+  const noun = () => (isPassphrase() ? "passphrase" : "password");
+
   function syncForm() {
-    el.range.value = opts.length;
-    el.number.value = opts.length;
+    const [min, max, value] = isPassphrase()
+      ? [PP_MIN_WORDS, PP_MAX_WORDS, ppOpts.words]
+      : [MIN_LENGTH, MAX_LENGTH, opts.length];
+    for (const input of [el.range, el.number]) {
+      input.min = min;
+      input.max = max;
+      input.value = value;
+    }
+    el.lengthLabel.textContent = isPassphrase() ? "Parole" : "Lunghezza";
+    el.number.setAttribute("aria-label", isPassphrase() ? "Numero di parole" : "Lunghezza in caratteri");
+    body.classList.toggle("mode-passphrase", isPassphrase());
+    el.password.setAttribute("aria-label", isPassphrase() ? "Passphrase generata" : "Password generata");
+    el.copy.setAttribute("aria-label", `Copia la ${noun()}`);
+    for (const button of el.modes) button.setAttribute("aria-pressed", String(button.dataset.mode === mode));
     for (const chip of el.chips) chip.setAttribute("aria-pressed", String(opts[chip.dataset.option]));
+    for (const chip of el.ppChips) chip.setAttribute("aria-pressed", String(ppOpts[chip.dataset.pp]));
+    for (const chip of el.sepChips) chip.setAttribute("aria-pressed", String(chip.dataset.separator === ppOpts.separator));
+  }
+
+  function currentBits() {
+    return isPassphrase() ? passphraseEntropyBits(ppOpts) : entropyBits(opts);
+  }
+
+  function fitCurrent() {
+    if (currentGroups) fitPassphrase(el.password, currentGroups);
+    else if (current) fitPassword(el.password, current.length);
+  }
+
+  /** Spazi per ogni carattere; nelle passphrase raggruppati per parola, che non va mai spezzata. */
+  function buildSpans(text, groups) {
+    const chars = [];
+    const makeChar = () => {
+      const span = document.createElement("span");
+      span.className = "ch";
+      chars.push(span);
+      return span;
+    };
+    if (!groups) {
+      el.password.replaceChildren(...[...text].map(makeChar));
+      return chars;
+    }
+    el.password.replaceChildren(...groups.map((group) => {
+      const word = document.createElement("span");
+      word.className = "w";
+      word.append(...[...group].map(makeChar));
+      return word;
+    }));
+    return chars;
   }
 
   function showStrength(bits, preview) {
@@ -364,14 +517,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /** I caratteri scorrono a caso e si fissano da sinistra a destra. */
-  function scramble(password, done) {
-    const alphabet = characterPools(opts).join("");
-    const spans = [...password].map(() => {
-      const span = document.createElement("span");
-      span.className = "ch";
-      return span;
-    });
-    el.password.replaceChildren(...spans);
+  function scramble(password, groups, done) {
+    const alphabet = groups ? "abcdefghilmnopqrstuvz" : characterPools(opts).join("");
+    const spans = buildSpans(password, groups);
     const start = performance.now();
     const lockStart = 500;
     const lockSpan = 900;
@@ -422,15 +570,18 @@ document.addEventListener("DOMContentLoaded", () => {
     setBusy(true);
     document.dispatchEvent(new CustomEvent("vaultforge:generate"));
 
-    const password = generatePassword(opts);
-    const bits = entropyBits(opts);
+    const made = isPassphrase() ? generatePassphrase(ppOpts) : { text: generatePassword(opts), groups: null };
+    const password = made.text;
+    const bits = currentBits();
     current = password;
+    currentGroups = made.groups;
+    el.password.classList.toggle("words", Boolean(made.groups));
     sealOff();
     el.meterFill.style.width = "0";
     el.entropyBits.textContent = bitsFormat.format(0);
     el.strengthLabel.textContent = "Sigillo in corso…";
     el.crackTime.textContent = " ";
-    fitPassword(el.password, password.length);
+    fitCurrent();
 
     const finish = () => {
       const level = showStrength(bits, false);
@@ -439,21 +590,28 @@ document.addEventListener("DOMContentLoaded", () => {
       countBits(bits);
       el.crackTime.textContent =
         `Tempo stimato per indovinarla con un attacco offline: ${crackTimeText(bits)}.`;
-      el.srStatus.textContent = `Nuova password generata: ${level.label.toLowerCase()}.`;
+      el.srStatus.textContent = `Nuova ${noun()} generata: ${level.label.toLowerCase()}.`;
       sealing = false;
       body.classList.remove("is-sealing");
       setBusy(false);
+      if (pendingMode && pendingMode !== mode) {
+        const next = pendingMode;
+        pendingMode = null;
+        switchMode(next);
+        return;
+      }
+      pendingMode = null;
       if (staleWhileSealing) markStale();
     };
 
     if (reducedMotion.matches) {
-      el.password.textContent = password;
+      buildSpans(password, made.groups).forEach((span, i) => { span.textContent = password[i]; });
       for (const bolt of bolts) bolt.classList.add("on");
       finish();
       return;
     }
     spinRing();
-    scramble(password, () => lightBolts(finish));
+    scramble(password, made.groups, () => lightBolts(finish));
   }
 
   /** Le opzioni sono cambiate: niente nuova password, solo l'anteprima della robustezza. */
@@ -464,10 +622,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     body.classList.add("is-stale");
     sealOff();
-    const bits = entropyBits(opts);
+    const bits = currentBits();
     showStrength(bits, true);
     el.entropyBits.textContent = bitsFormat.format(bits);
-    el.crackTime.textContent = "Opzioni cambiate. Premi «Genera e sigilla» per una nuova password.";
+    el.crackTime.textContent = `Opzioni cambiate. Premi «Genera e sigilla» per una nuova ${noun()}.`;
   }
 
   function update(changes) {
@@ -477,8 +635,51 @@ document.addEventListener("DOMContentLoaded", () => {
     markStale();
   }
 
-  el.range.addEventListener("input", () => update({ length: clampLength(el.range.value) }));
-  el.number.addEventListener("change", () => update({ length: clampLength(el.number.value) }));
+  function updatePassphrase(changes) {
+    ppOpts = { ...ppOpts, ...changes };
+    savePassphraseOptions(ppOpts);
+    syncForm();
+    markStale();
+  }
+
+  function onLengthInput(value) {
+    if (isPassphrase()) updatePassphrase({ words: clampWords(value) });
+    else update({ length: clampLength(value) });
+  }
+
+  el.range.addEventListener("input", () => onLengthInput(el.range.value));
+  el.number.addEventListener("change", () => onLengthInput(el.number.value));
+
+  for (const chip of el.ppChips) {
+    chip.addEventListener("click", () => updatePassphrase({ [chip.dataset.pp]: !ppOpts[chip.dataset.pp] }));
+  }
+  for (const chip of el.sepChips) {
+    chip.addEventListener("click", () => updatePassphrase({ separator: chip.dataset.separator }));
+  }
+
+  // Cambiando modalita' si genera subito: chi preme "Passphrase" la vuole vedere.
+  function switchMode(next) {
+    mode = next;
+    saveMode(mode);
+    syncForm();
+    seal();
+  }
+
+  for (const button of el.modes) {
+    button.addEventListener("click", () => {
+      const next = button.dataset.mode;
+      if (next === "passphrase" && !hasWordlist) {
+        showToast("Lista di parole non disponibile: ricarica la pagina");
+        return;
+      }
+      // Durante il sigillo la scelta non si perde: si applica appena il sigillo finisce.
+      if (sealing) {
+        pendingMode = next === mode ? null : next;
+        return;
+      }
+      if (next !== mode) switchMode(next);
+    });
+  }
 
   for (const chip of el.chips) {
     chip.addEventListener("click", () => {
@@ -506,16 +707,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if (!ok) showToast("Copia non riuscita: selezionala a mano");
     else if (body.classList.contains("is-stale")) {
-      // Le opzioni sono cambiate: si e' copiata la password mostrata (sfocata), non una nuova.
-      showToast("Password precedente copiata: premi «Genera e sigilla» per una nuova");
-    } else showToast("Password copiata negli appunti");
+      // Le opzioni sono cambiate: si e' copiata quella mostrata (sfocata), non una nuova.
+      showToast(`${isPassphrase() ? "Passphrase" : "Password"} precedente copiata: premi «Genera e sigilla» per una nuova`);
+    } else showToast(`${isPassphrase() ? "Passphrase" : "Password"} copiata negli appunti`);
   });
 
   // Se la ruota cambia dimensione (rotazione del telefono, finestra ridimensionata)
   // la password va riadattata al nuovo quadrante.
   if ("ResizeObserver" in window) {
     new ResizeObserver(() => {
-      if (current) fitPassword(el.password, current.length);
+      fitCurrent();
     }).observe(el.password.parentElement);
   }
 

@@ -6,6 +6,7 @@ const ASSETS = [
   "/api",
   "/static/css/fonts.css?v={{ version }}",
   "/static/css/app.css?v={{ version }}",
+  "/static/js/wordlist-it.js?v={{ version }}",
   "/static/js/app.js?v={{ version }}",
   "/manifest.webmanifest",
   "/static/icons/icon.svg",
